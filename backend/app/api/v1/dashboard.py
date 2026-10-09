@@ -44,3 +44,25 @@ async def get_dashboard_summary(
         "currency": revenue_data['currency'],
         "reservations_count": revenue_data['count']
     }
+
+
+@router.get("/dashboard/properties")
+async def get_dashboard_properties(
+    current_user: dict = Depends(get_current_user)
+) -> list:
+    """Properties that belong to the caller's tenant only."""
+    from sqlalchemy import text
+    from app.core.database_pool import db_pool
+
+    tenant_id = _get_tenant_id(current_user)
+
+    if not db_pool.session_factory:
+        await db_pool.initialize()
+
+    async with db_pool.get_session() as session:
+        rows = (await session.execute(
+            text("SELECT id, name FROM properties WHERE tenant_id = :tenant_id ORDER BY id"),
+            {"tenant_id": tenant_id},
+        )).fetchall()
+
+    return [{"id": r.id, "name": r.name} for r in rows]
